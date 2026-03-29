@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Smart Parking System</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@500&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: #f4f6f9;
+    color: #1a1a2e;
+    font-family: 'Inter', sans-serif;
+    min-height: 100vh;
+    padding: 28px 24px;
+  }
+
+  header {
+    max-width: 960px;
+    margin: 0 auto 28px;
+  }
+
+  header h1 {
+    font-size: 1.4rem;
+    font-weight: 600;
+    color: #1a1a2e;
+  }
+
+  header p {
+    font-size: 0.85rem;
+    color: #6b7280;
+    margin-top: 4px;
+  }
+
+  .live {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.72rem;
+    color: #16a34a;
+    background: #dcfce7;
+    padding: 3px 10px;
+    border-radius: 20px;
+    margin-top: 8px;
+  }
+
+  .dot { width: 7px; height: 7px; background: #16a34a; border-radius: 50%; animation: blink 1.4s infinite; }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+  .grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 16px;
+    max-width: 960px;
+    margin: 0 auto;
+  }
+
+  .card {
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    padding: 20px;
+    position: relative;
+  }
+
+  .card-title {
+    font-size: 0.72rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1.2px;
+    color: #9ca3af;
+    margin-bottom: 4px;
+  }
+
+  .card-desc {
+    font-size: 0.78rem;
+    color: #6b7280;
+    margin-bottom: 14px;
+    line-height: 1.5;
+  }
+
+  /* Tooltip */
+  [data-tip] { position: relative; }
+  [data-tip]::after {
+    content: attr(data-tip);
+    position: absolute;
+    bottom: calc(100% + 8px);
+    left: 50%;
+    transform: translateX(-50%);
+    background: #1f2937;
+    color: #f9fafb;
+    font-size: 0.71rem;
+    font-family: 'Inter', sans-serif;
+    padding: 7px 11px;
+    border-radius: 7px;
+    white-space: normal;
+    text-align: center;
+    line-height: 1.45;
+    width: 200px;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.18s;
+    z-index: 20;
+  }
+  [data-tip]:hover::after { opacity: 1; }
+
+  /* Counter */
+  .counter-row { display: flex; gap: 6px; margin-bottom: 10px; }
+  .digit {
+    background: #f3f4f6;
+    border: 1px solid #e5e7eb;
+    border-radius: 6px;
+    width: 38px; height: 48px;
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 1.5rem;
+    font-weight: 500;
+    color: #1a1a2e;
+  }
+
+  /* Gas */
+  .status-pill {
+    display: inline-flex; align-items: center; gap: 7px;
+    padding: 6px 14px; border-radius: 20px;
+    font-size: 0.82rem; font-weight: 600; margin-bottom: 10px;
+  }
+  .pill-safe  { background: #dcfce7; color: #15803d; }
+  .pill-alert { background: #fee2e2; color: #dc2626; }
+  .pill-dot   { width: 8px; height: 8px; border-radius: 50%; }
+  .pill-safe  .pill-dot { background: #16a34a; }
+  .pill-alert .pill-dot { background: #dc2626; animation: blink 0.7s infinite; }
+
+  /* Slots */
+  .slots-grid {
+    display: grid; grid-template-columns: repeat(5,1fr);
+    gap: 5px; margin-bottom: 10px;
+  }
+  .slot {
+    aspect-ratio: 1; border-radius: 5px;
+    border: 1.5px solid #e5e7eb;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 0.58rem; font-weight: 600;
+    cursor: pointer; transition: filter 0.15s; color: #6b7280;
+  }
+  .slot.free  { background: #f0fdf4; border-color: #86efac; color: #15803d; }
+  .slot.taken { background: #fff1f2; border-color: #fca5a5; color: #dc2626; }
+  .slot:hover { filter: brightness(0.93); }
+
+  /* Traffic light */
+  .tl-wrap { display: flex; align-items: flex-start; gap: 18px; }
+  .tl-pole {
+    background: #f3f4f6; border: 1.5px solid #e5e7eb;
+    border-radius: 10px; padding: 10px 9px;
+    display: flex; flex-direction: column; gap: 7px; align-items: center;
+    flex-shrink: 0;
+  }
+  .tl-bulb { width: 24px; height: 24px; border-radius: 50%; border: 1.5px solid #d1d5db; transition: all 0.3s; }
+  .tl-r.on  { background: #ef4444; box-shadow: 0 0 10px #ef444466; border-color: #ef4444; }
+  .tl-r.off { background: #fecaca; }
+  .tl-y.on  { background: #f59e0b; box-shadow: 0 0 10px #f59e0b66; border-color: #f59e0b; }
+  .tl-y.off { background: #fef3c7; }
+  .tl-g.on  { background: #22c55e; box-shadow: 0 0 10px #22c55e66; border-color: #22c55e; }
+  .tl-g.off { background: #bbf7d0; }
+
+  .tl-info { padding-top: 2px; }
+  .tl-state { font-size: 0.9rem; font-weight: 600; color: #1a1a2e; margin-bottom: 4px; }
+  .tl-sub   { font-size: 0.75rem; color: #6b7280; line-height: 1.5; }
+
+  /* 3D canvas */
+  .scene-card { grid-column: span 2; }
+  canvas {
+    width: 100%; height: 260px; display: block;
+    border-radius: 8px; background: #f8fafc; border: 1px solid #e5e7eb;
+  }
+
+  /* PIN */
+  .pin-dots { display: flex; gap: 10px; margin-bottom: 12px; }
+  .pin-dot {
+    width: 14px; height: 14px; border-radius: 50%;
+    background: #d1d5db; border: 2px solid #e5e7eb; transition: all 0.2s;
+  }
+  .pin-dot.filled { background: #1a1a2e; border-color: #1a1a2e; }
+
+  /* Buttons */
+  .btn {
+    font-family: 'Inter', sans-serif;
+    font-size: 0.78rem; font-weight: 500;
+    padding: 8px 14px; border-radius: 7px;
+    border: 1.5px solid #e5e7eb;
+    background: #f9fafb; color: #374151;
+    cursor: pointer; transition: all 0.15s; width: 100%;
+  }
+  .btn:hover { background: #f3f4f6; border-color: #d1d5db; }
+  .btn.primary { background: #1a1a2e; color: #fff; border-color: #1a1a2e; }
+  .btn.primary:hover { background: #2d2d4e; }
+  .btn.danger-btn { border-color: #fca5a5; color: #dc2626; background: #fff; }
+  .btn.danger-btn:hover { background: #fff1f2; }
+
+  .stat-note { font-size: 0.75rem; color: #9ca3af; margin-top: 6px; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Smart Car Parking System</h1>
+  <p>Microcontroller-based monitoring — gas detection, slot tracking, entry control &amp; security PIN</p>
+  <div class="live"><div class="dot"></div> System Online</div>
+</header>
+
+<div class="grid">
+
+  <!-- 3D VIEW -->
+  <div class="card scene-card">
+    <div class="card-title">Parking Lot — Live View</div>
+    <div class="card-desc">
+      Isometric overview of all 10 parking bays. Occupied slots show a coloured car. The entry barrier arm reflects the current traffic light state — green means open, red means blocked.
+    </div>
+    <canvas id="c3d"
+      data-tip="Coloured blocks = occupied bays. Barrier arm colour matches the signal light. Toggle slots in the Slot Status card to update this view.">
+    </canvas>
+  </div>
+
+  <!-- TRAFFIC LIGHT -->
+  <div class="card">
+    <div class="card-title">Entry Signal</div>
+    <div class="card-desc">
+      Controls the physical gate at the lot entrance. Automatically switches to red when a gas leak is detected or all slots are full. Manually cycle it to test gate behaviour.
+    </div>
+    <div class="tl-wrap"
+      data-tip="Red = gate closed, Yellow = proceed with caution, Green = entry permitted. Linked to gas sensor and slot occupancy.">
+      <div class="tl-pole">
+        <div class="tl-bulb tl-r off" id="tl-r"></div>
+        <div class="tl-bulb tl-y off" id="tl-y"></div>
+        <div class="tl-bulb tl-g on"  id="tl-g"></div>
+      </div>
+      <div class="tl-info">
+        <div class="tl-state" id="tl-text">Entry Open</div>
+        <div class="tl-sub" id="tl-sub">Barrier raised.<br>Vehicles may enter.</div>
+      </div>
+    </div>
+    <button class="btn" style="margin-top:14px" onclick="cycleLight()"
+      data-tip="Steps through green → yellow → red to simulate the gate controller behaviour.">
+      Cycle Signal
+    </button>
+  </div>
+
+  <!-- COUNTER -->
+  <div class="card">
+    <div class="card-title">Vehicle Counter</div>
+    <div class="card-desc">
+      4-digit 7-segment display driven by Arduino Timer1 interrupt (pins 9–12). Increments each time a vehicle passes the entry sensor button on pin A0. Resets at 9999.
+    </div>
+    <div class="counter-row"
+      data-tip="Mirrors the physical 4-digit display on the PCB. Each digit is multiplexed using common-anode pins C1–C4.">
+      <div class="digit" id="d1">0</div>
+      <div class="digit" id="d2">0</div>
+      <div class="digit" id="d3">0</div>
+      <div class="digit" id="d4">3</div>
+    </div>
+    <p class="stat-note">Wraps to 0000 after 9999</p>
+    <button class="btn primary" style="margin-top:10px" onclick="incrementCounter()"
+      data-tip="Simulates a LOW→HIGH pulse on pin A0 (bt_up button), incrementing the counter by 1 and marking a free slot as taken.">
+      + Simulate Entry
+    </button>
+  </div>
+
+  <!-- GAS SENSOR -->
+  <div class="card">
+    <div class="card-title">Gas Sensor (MQ Series)</div>
+    <div class="card-desc">
+      Reads a digital HIGH/LOW from pin D1. When gas is detected, the buzzer on pin 13 pulses at 80 ms intervals and the red LED blinks rapidly as a visual alert.
+    </div>
+    <div class="status-pill pill-safe" id="gasPill"
+      data-tip="HIGH on pin D1 = gas present. Fires buzzer (pin 13) in 80 ms bursts and triggers red LED blink. Also forces traffic light to red.">
+      <div class="pill-dot"></div>
+      <span id="gasLabel">Safe — No Gas Detected</span>
+    </div>
+    <p class="stat-note">Buzzer: <strong id="buzzerTxt">OFF</strong> &nbsp;|&nbsp; LED: <strong id="ledTxt">Solid</strong></p>
+    <button class="btn danger-btn" style="margin-top:10px" onclick="toggleGas()"
+      data-tip="Simulates a HIGH signal on the MQ gas sensor. Activates buzzer, blinks LED, and overrides the entry signal to red.">
+      Simulate Gas Leak
+    </button>
+  </div>
+
+  <!-- SLOTS -->
+  <div class="card">
+    <div class="card-title">Slot Status — 10 Spaces</div>
+    <div class="card-desc">
+      Each cell is one parking bay. When all 10 are occupied the entry signal automatically turns red. Click any slot to toggle its state manually.
+    </div>
+    <div class="slots-grid" id="slotsGrid"
+      data-tip="Green = free bay. Red = occupied. Click a slot to toggle it. Full lot triggers a red entry signal automatically.">
+    </div>
+    <p class="stat-note" id="slotNote">7 free · 3 occupied</p>
+  </div>
+
+  <!-- PIN -->
+  <div class="card">
+    <div class="card-title">Security Access</div>
+    <div class="card-desc">
+      A 4-digit PIN stored on the microcontroller protects gate override and system settings. Unauthorised PIN attempts are ignored, keeping the lot secure.
+    </div>
+    <div class="pin-dots" id="pinDots"
+      data-tip="4-character PIN gates manual control of the entry system. Three wrong attempts would lock the system on a real deployment.">
+      <div class="pin-dot"></div>
+      <div class="pin-dot"></div>
+      <div class="pin-dot"></div>
+      <div class="pin-dot"></div>
+    </div>
+    <p class="stat-note" id="pinStatus">Status: Locked</p>
+    <button class="btn primary" style="margin-top:10px" onclick="verifyPin()"
+      data-tip="Enter the 4-digit PIN to simulate authentication. Demo PIN is 1234.">
+      Verify PIN
+    </button>
+  </div>
+
+</div>
+
+<script>
+// ── COUNTER ──
+let counter = 3;
+function updateCounter(n) {
+  const s = String(n).padStart(4,'0');
+  ['d1','d2','d3','d4'].forEach((id,i) => document.getElementById(id).textContent = s[i]);
+}
+function incrementCounter() {
+  counter = (counter + 1) % 10000;
+  updateCounter(counter);
+  const idx = slots.indexOf(false);
+  if (idx !== -1) { slots[idx] = true; renderSlots(); checkFull(); }
+}
+
+// ── GAS ──
+let gasOn = false;
+function toggleGas() {
+  gasOn = !gasOn;
+  const pill = document.getElementById('gasPill');
+  const lbl  = document.getElementById('gasLabel');
+  if (gasOn) {
+    pill.className = 'status-pill pill-alert';
+    lbl.textContent = 'Alert — Gas Detected!';
+    document.getElementById('buzzerTxt').textContent = 'ON';
+    document.getElementById('ledTxt').textContent = 'Blinking';
+    setLight('red');
+  } else {
+    pill.className = 'status-pill pill-safe';
+    lbl.textContent = 'Safe — No Gas Detected';
+    document.getElementById('buzzerTxt').textContent = 'OFF';
+    document.getElementById('ledTxt').textContent = 'Solid';
+    setLight(slots.every(s=>s) ? 'red' : 'green');
+  }
+}
+
+// ── SLOTS ──
+let slots = [true,true,true,false,false,false,false,false,false,false];
+function renderSlots() {
+  const g = document.getElementById('slotsGrid');
+  g.innerHTML = '';
+  slots.forEach((taken, i) => {
+    const el = document.createElement('div');
+    el.className = 'slot ' + (taken ? 'taken' : 'free');
+    el.textContent = 'P'+(i+1);
+    el.title = (taken ? 'Occupied' : 'Free') + ' — click to toggle';
+    el.onclick = () => { slots[i] = !slots[i]; renderSlots(); checkFull(); };
+    g.appendChild(el);
+  });
+  const free = slots.filter(s=>!s).length;
+  document.getElementById('slotNote').textContent = free+' free · '+(10-free)+' occupied';
+}
+function checkFull() {
+  if (!gasOn) setLight(slots.every(s=>s) ? 'red' : 'green');
+}
+renderSlots();
+
+// ── TRAFFIC LIGHT ──
+let lightState = 'green';
+const tlSubs = { red:'Barrier lowered.\nEntry is blocked.', yellow:'Proceed with caution.', green:'Barrier raised.\nVehicles may enter.' };
+function setLight(state) {
+  lightState = state;
+  document.getElementById('tl-r').className = 'tl-bulb tl-r '+(state==='red'?'on':'off');
+  document.getElementById('tl-y').className = 'tl-bulb tl-y '+(state==='yellow'?'on':'off');
+  document.getElementById('tl-g').className = 'tl-bulb tl-g '+(state==='green'?'on':'off');
+  const labels = { red:'Entry Blocked', yellow:'Caution', green:'Entry Open' };
+  document.getElementById('tl-text').textContent = labels[state];
+  document.getElementById('tl-sub').innerHTML = tlSubs[state].replace('\n','<br>');
+}
+function cycleLight() {
+  const order = ['green','yellow','red'];
+  setLight(order[(order.indexOf(lightState)+1)%3]);
+}
+
+// ── PIN ──
+function verifyPin() {
+  const pin = prompt('Enter 4-digit PIN (demo: 1234):');
+  if (pin === null) return;
+  const dots = document.querySelectorAll('.pin-dot');
+  const statusEl = document.getElementById('pinStatus');
+  dots.forEach(d => d.classList.add('filled'));
+  setTimeout(() => {
+    if (pin === '1234') {
+      statusEl.textContent = 'Status: Access Granted ✓';
+      statusEl.style.color = '#15803d';
+    } else {
+      statusEl.textContent = 'Status: Access Denied ✗';
+      statusEl.style.color = '#dc2626';
+    }
+    setTimeout(() => {
+      statusEl.textContent = 'Status: Locked';
+      statusEl.style.color = '';
+      dots.forEach(d => d.classList.remove('filled'));
+    }, 2200);
+  }, 400);
+}
+
+// ── 3D SCENE ──
+const canvas = document.getElementById('c3d');
+const ctx = canvas.getContext('2d');
+
+function resize() {
+  canvas.width  = canvas.offsetWidth  * devicePixelRatio;
+  canvas.height = canvas.offsetHeight * devicePixelRatio;
+  ctx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
+}
+resize();
+window.addEventListener('resize', resize);
+
+function iso(x, y, z) {
+  const W = canvas.offsetWidth, H = canvas.offsetHeight;
+  const sc = Math.min(W,H) * 0.058;
+  return { x: W*0.5 + (x-y)*sc, y: H*0.34 + (x+y)*sc*0.5 - z*sc*0.85 };
+}
+
+function face(pts, fill, stroke) {
+  ctx.beginPath();
+  ctx.moveTo(pts[0].x, pts[0].y);
+  pts.slice(1).forEach(p => ctx.lineTo(p.x, p.y));
+  ctx.closePath();
+  ctx.fillStyle = fill; ctx.fill();
+  if (stroke) { ctx.strokeStyle = stroke; ctx.lineWidth = 0.7; ctx.stroke(); }
+}
+
+function box(x,y,z,w,d,h,top,right,front) {
+  const p=(dx,dy,dz)=>iso(x+dx,y+dy,z+dz);
+  face([p(0,0,h),p(w,0,h),p(w,d,h),p(0,d,h)], top,   '#e2e8f0');
+  face([p(w,0,0),p(w,0,h),p(w,d,h),p(w,d,0)], right, '#e2e8f0');
+  face([p(0,d,0),p(0,d,h),p(w,d,h),p(w,d,0)], front, '#e2e8f0');
+}
+
+const carCols = ['#ef4444','#3b82f6','#22c55e','#f59e0b','#8b5cf6','#06b6d4','#f97316','#64748b','#ec4899','#10b981'];
+
+function drawCar(x, y, col) {
+  // body base
+  box(x, y, 0, 0.75, 1.4, 0.18, '#cbd5e1','#b0bec5','#94a3b8');
+  // cabin
+  const h = parseInt(col.slice(1,3),16), s2 = parseInt(col.slice(3,5),16), b2 = parseInt(col.slice(5,7),16);
+  const dr = c => `rgb(${Math.max(0,c[0]+c[3])},${Math.max(0,c[1]+c[3])},${Math.max(0,c[2]+c[3])})`;
+  box(x+0.08, y+0.25, 0.18, 0.58, 0.75, 0.22,
+    col,
+    dr([h,s2,b2,-40]),
+    dr([h,s2,b2,-60])
+  );
+}
+
+function draw() {
+  const W = canvas.offsetWidth, H = canvas.offsetHeight;
+  ctx.clearRect(0,0,W,H);
+
+  // Ground slab
+  face([iso(-1,-1,0),iso(9,-1,0),iso(9,11,0),iso(-1,11,0)], '#f1f5f9', '#e2e8f0');
+
+  // Centre lane divider
+  ctx.save();
+  ctx.setLineDash([7,5]);
+  ctx.strokeStyle = '#cbd5e1'; ctx.lineWidth = 1.2;
+  ctx.beginPath();
+  const la=iso(3.8,-0.5,0.01), lb=iso(3.8,10.5,0.01);
+  ctx.moveTo(la.x,la.y); ctx.lineTo(lb.x,lb.y); ctx.stroke();
+  ctx.restore();
+
+  // Slot lines
+  for(let col=0;col<2;col++) for(let row=0;row<5;row++) {
+    const bx=col*4.5+0.35, by=row*1.9+0.25;
+    face([iso(bx,by,0.01),iso(bx+1.1,by,0.01),iso(bx+1.1,by+1.55,0.01),iso(bx,by+1.55,0.01)],
+      slots[col*5+row] ? 'rgba(254,226,226,0.5)' : 'rgba(240,253,244,0.5)', '#cbd5e1');
+  }
+
+  // Cars
+  slots.forEach((taken,i) => {
+    if (!taken) return;
+    const col=Math.floor(i/5), row=i%5;
+    drawCar(col*4.5+0.46, row*1.9+0.33, carCols[i]);
+  });
+
+  // Gate post
+  box(-0.15, 4.75, 0, 0.13, 0.13, 1.1, '#94a3b8','#7f8ea3','#6b7a8d');
+  // Barrier arm
+  const ba=iso(-0.08,4.81,1.08), bb=iso(-0.08+1.7,4.81,1.08);
+  const bc={red:'#ef4444',yellow:'#f59e0b',green:'#22c55e'}[lightState];
+  ctx.beginPath(); ctx.moveTo(ba.x,ba.y); ctx.lineTo(bb.x,bb.y);
+  ctx.strokeStyle=bc; ctx.lineWidth=4;
+  ctx.shadowColor=bc; ctx.shadowBlur=7; ctx.stroke(); ctx.shadowBlur=0;
+
+  // Mini traffic light post
+  box(1.65,-0.35,0, 0.1,0.1,1.25,'#94a3b8','#7f8ea3','#6b7a8d');
+  const tp=iso(1.7,-0.35,1.25);
+  [{dy:-7,c:'red'},{dy:0,c:'yellow'},{dy:7,c:'green'}].forEach(({dy,c}) => {
+    const on=lightState===c;
+    const full={red:'#ef4444',yellow:'#f59e0b',green:'#22c55e'};
+    const dim ={red:'#fecaca',yellow:'#fef3c7',green:'#bbf7d0'};
+    ctx.beginPath(); ctx.arc(tp.x, tp.y+dy, 4, 0, Math.PI*2);
+    ctx.fillStyle = on ? full[c] : dim[c];
+    if(on){ctx.shadowColor=full[c];ctx.shadowBlur=7;}
+    ctx.fill(); ctx.shadowBlur=0;
+  });
+
+  requestAnimationFrame(draw);
+}
+draw();
+updateCounter(counter);
+</script>
+</body>
+</html>
